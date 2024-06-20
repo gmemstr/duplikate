@@ -155,14 +155,14 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    // Login with a bot token from the environment
+    let redis_url = env::var("REDIS_URL").expect("Expected a Redis instance URL");
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let client = redis::Client::open(redis_url).unwrap();
     let handler = Handler { redis: client };
 
     // Create a new instance of the Client, logging in as a bot.

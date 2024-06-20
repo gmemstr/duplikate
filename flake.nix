@@ -49,7 +49,6 @@
           config = {
             Cmd = [ "${my-crate}/bin/duplikate" ];
           };
-          architecture = system;
         };
       in
       {
@@ -74,7 +73,7 @@
               docker push $amd64
               docker push $arm64
               docker manifest create --amend git.gmem.ca/arch/duplikate:latest $arm64 $amd64
-              docker manifest push git.gmem.ca/arch/duplikate:latest
+              docker manifest push git.gmem.ca/arch/duplikate:latest --purge
             '');
         };
 
