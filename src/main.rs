@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use dotenv::dotenv;
 use once_cell::sync::Lazy;
-use redis::Commands;
+use redis::{Commands, SetExpiry, SetOptions};
 use regex::Regex;
 use serenity::all::{
     ChannelId, CreateButton, CreateEmbed, CreateEmbedFooter, CreateMessage, GuildId, ReactionType,
@@ -23,11 +23,11 @@ impl EventHandler for Handler {
     async fn message_delete(
         &self,
         _ctx: Context,
-        _channel_id: ChannelId,
+        channel_id: ChannelId,
         deleted_message_id: MessageId,
-        guild_id: Option<GuildId>,
+        _guild_id: Option<GuildId>,
     ) {
-        let meta = format!("{}-{}", guild_id.unwrap(), deleted_message_id);
+        let meta = format!("{}-{}", channel_id.get(), deleted_message_id);
         let existing: Result<String, redis::RedisError> =
             self.redis.get_connection().unwrap().get(&meta);
 
@@ -67,14 +67,16 @@ impl EventHandler for Handler {
             }
         }
         if links.len() > 0 {
+            let opts = SetOptions::default()
+                .with_expiration(SetExpiry::EX(60 * 60 * 24 * 7));
             let mut exists = vec![];
-            let guild_id = msg.guild_id.unwrap();
+            let channel_id = msg.channel_id.get();
             for link in links {
                 let mut s = DefaultHasher::new();
-                format!("{}-{}", link, guild_id).hash(&mut s);
+                format!("{}-{}", link, channel_id).hash(&mut s);
                 let h = s.finish();
                 let hash = format!("{:x}", h);
-                let meta = format!("{}-{}", guild_id, msg.id.get());
+                let meta = format!("{}-{}", channel_id, msg.id.get());
                 let existing: Result<String, redis::RedisError> =
                     self.redis.get_connection().unwrap().get(&hash);
                 if existing.is_ok() {
@@ -84,24 +86,24 @@ impl EventHandler for Handler {
                         .redis
                         .get_connection()
                         .unwrap()
-                        .set(&hash, &msg.link())
+                        .set_options(&hash, &msg.link(), opts.clone())
                         .unwrap();
                     let _: () = self
                         .redis
                         .get_connection()
                         .unwrap()
-                        .set(meta, hash)
+                        .set_options(meta, hash, opts)
                         .unwrap();
                 }
             }
             if exists.len() > 0 {
                 // Links have already been posted, let's tell them
                 let desc = format!(
-                    "{} have already been posted!",
+                    "{} been posted in the last 7 days in this channel",
                     if exists.len() > 1 {
-                        "Some of these"
+                        "Some of these have"
                     } else {
-                        "One of these"
+                        "One of these has"
                     }
                 );
                 let mut fields = vec![];
