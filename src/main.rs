@@ -141,11 +141,13 @@ impl EventHandler for Handler {
                     .stream();
 
                 while let Some(interaction) = interaction_stream.next().await {
-                    let action = &interaction.data.custom_id;
-                    if action == "remove" {
-                        msg.delete(&ctx).await.unwrap();
+                    if interaction.user.id == msg.author.id {
+                        let action = &interaction.data.custom_id;
+                        if action == "remove" {
+                            msg.delete(&ctx).await.unwrap();
+                        }
+                        reply.delete(&ctx).await.unwrap();
                     }
-                    reply.delete(&ctx).await.unwrap();
                 }
             }
         }
